@@ -23,3 +23,119 @@
 
 # 2. 데이터
  ### - 2.1 데이터 출처     
+ Kaggle : https://www.kaggle.com/datasets/mohamedbakhet/amazon-books-reviews
+
+ ### - 2.2 입력-모델-출력
+
+ ```python
+  import pandas as pd
+  df = pd.read_csv('/content/drive/MyDrive/Books_rating.csv')
+  df
+ ```
+| Id         | Title                | Price | User_id          | profileName                            | review/helpfulness | review/score | review/time | review/summary                                     | review/text                                                                                                                      |
+|------------|----------------------|-------|------------------|----------------------------------------|--------------------|--------------|-------------|----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| 1882931173 | Its Only Art If Its Well Hung! | NaN   | AVCGYZL8FQQTD    | Jim of Oz "jim-of-oz"                 | 7/7                | 4.0          | 940636800   | Nice collection of Julie Strain images            | This is only for Julie Strain fans. It's a col...                                                                                 |
+| 0826414346 | Dr. Seuss: American Icon        | NaN   | A30TK6U7DNS82R  | Kevin Killian                          | 10/10              | 5.0          | 1095724800  | Really Enjoyed It                                 | I don't care much for Dr. Seuss but after read...                                                                                 |
+| 0826414346 | Dr. Seuss: American Icon        | NaN   | A3UH4UZ4RSVO82 | John Granger                           | 10/11              | 5.0          | 1078790400  | Essential for every personal and Public Library  | If people become the books they read and if "...                                                                                 |
+| 0826414346 | Dr. Seuss: American Icon        | NaN   | A2MVUWT453QH61 | Roy E. Perry "amateur philosopher"     | 7/7                | 4.0          | 1090713600  | Phlip Nel gives silly Seuss a serious treatment  | Theodore Seuss Geisel (1904-1991), aka &quot;D...                                                                                 |
+| 0826414346 | Dr. Seuss: American Icon        | NaN   | A22X4XUPKF66MR | D. H. Richards "ninthwavestore"       | 3/3                | 4.0          | 1107993600  | Good academic overview                           | Philip Nel - Dr. Seuss: American IconThis is b...                                                                                 |
+| ...        | ...                  | ...   | ...              | ...                                    | ...                | ...          | ...         | ...                                                | ...                                                                                                                               |
+| B000NSLVCU | The Idea of History            | NaN   | NaN              | NaN                                    | 14/19              | 4.0          | 937612800   | Difficult                                          | This is an extremely difficult book to digest,...                                                                                 |
+| B000NSLVCU | The Idea of History            | NaN   | A1SMUB9ASL5L9Y  | jafrank                                | 1/1                | 4.0          | 1331683200  | Quite good and ahead of its time occasionally    | This is pretty interesting. Collingwood seems ...                                                                                 |
+| B000NSLVCU | The Idea of History            | NaN   | A2AQMEKZKK5EE4 | L. L. Poulos "Muslim Mom"             | 0/0                | 4.0          | 1180224000  | Easier reads of those not well versed in histo... | This is a good book but very esoteric. "What i...                                                                                 |
+| B000NSLVCU | The Idea of History            | NaN   | A18SQGYBKS852K | Julia A. Klein "knitting rat"         | 1/11               | 5.0          | 1163030400  | Yes, it is cheaper than the University Bookstore | My daughter, a freshman at Indiana University,...                                                                                 |
+| B000NSLVCU | The Idea of History            | NaN   | NaN              | NaN                                    | 7/49               | 1.0          | 905385600   | Collingwood's ideas sink in a quagmire or verb... | The guy has a few good ideas but, reader, bewa...                                                                                 |
+
+  ### - 데이터 구성
+| 데이터       | 구분                                 |
+|-------------|-------------------------------------|
+| Id          | 책의 고유 식별자                    |
+| Title       | 책의 제목                           |
+| Price       | 책의 가격 (NaN은 가격이 없음을 의미)|
+| User_id     | 사용자의 고유 식별자                |
+| profileName | 사용자의 프로필 이름                |
+| review/helpfulness | 리뷰의 도움말 수/총 도움말 요청 수 |
+| review/score | 리뷰의 평점 (3점 이하는 부정 4점이상은 긍정으로 표기)     |
+| review/time | 리뷰가 작성된 시간 (UNIX 시간 형식)|
+| review/summary | 리뷰의 요약                        |
+| review/text | 리뷰 내용                           |
+
+## 3. MobileBERT를 사용한 결과 (training, validation 그래프) 
+데이터를 적게 3000건을 추출하여 3 이하는 부정, 4 이상은 긍정으로 하여 긍부정 데이터 추출을 시도함, 그래프를 만들어보려 했으나 자체적 오류로 지연됨
+
+
+```python
+import torch
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from transformers import MobileBertTokenizer, MobileBertForSequenceClassification, TrainingArguments, Trainer
+import matplotlib.pyplot as plt
+
+# torch 라이브러리 import
+import torch
+
+# 데이터 불러오기
+data = pd.read_csv('/content/drive/MyDrive/Books_rating.csv')
+
+# 데이터를 3000건으로 샘플링
+data = data.sample(n=3000, random_state=42)
+
+# 훈련 데이터와 테스트 데이터로 분할
+train_data, test_data = train_test_split(data, test_size=0.2, random_state=42)
+
+# 모델과 토크나이저 불러오기
+tokenizer = MobileBertTokenizer.from_pretrained('google/mobilebert-uncased')
+model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", num_labels=2)
+
+# 데이터셋 인코딩 함수 정의
+def encode_data(data):
+    # 'review/score' 열이 존재하는지 확인
+    assert 'review/score' in data.columns, "'review/score' column does not exist in the dataframe."
+    # 리뷰 텍스트를 토큰화하고 레이블을 숫자로 변환하여 반환
+    return tokenizer(data['review/text'].tolist(), padding=True, truncation=True, return_tensors='pt'), torch.tensor(data['review/score'].apply(lambda x: 1 if x >= 3 else 0).tolist())
+
+# 훈련 데이터셋과 테스트 데이터셋 인코딩
+train_dataset = encode_data(train_data)
+test_dataset = encode_data(test_data)
+
+# 학습 설정 정의
+training_args = TrainingArguments(
+    output_dir='./results',
+    num_train_epochs=3,
+    per_device_train_batch_size=8,
+    per_device_eval_batch_size=8,
+    warmup_steps=500,
+    weight_decay=0.01,
+    logging_dir='./logs',
+)
+
+# Trainer 객체 생성
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,
+    eval_dataset=test_dataset,
+)
+
+# 모델 학습
+trainer.train()
+
+# 테스트 데이터셋 예측
+predictions = trainer.predict(test_dataset)
+predicted_labels = predictions.predictions.argmax(axis=1)
+
+# 예측된 레이블을 데이터프레임에 추가
+test_data['predicted_label'] = predicted_labels
+
+# 각 예측값에 따른 리뷰 수 계산
+positive_count = (test_data['predicted_label'] == 1).sum()
+negative_count = (test_data['predicted_label'] == 0).sum()
+
+# matplotlib를 이용한 그래프 그리기
+plt.figure(figsize=(8, 6))
+plt.bar(['Positive', 'Negative'], [positive_count, negative_count], color=['green', 'red'])
+plt.title('Distribution of Predicted Sentiments')
+plt.xlabel('Sentiment')
+plt.ylabel('Count')
+plt.show()
+```
