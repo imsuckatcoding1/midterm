@@ -76,7 +76,9 @@
 
 (3) 전처리한 데이터의 Rating이 4이상인 리뷰를 1(긍정), 3이하인 리뷰를 0(부정)으로 바꾸어서 이진 분류함.
 
-가공 결과:
+가공 결과
+
+
 ![4t4e545](https://github.com/imsuckatcoding1/midterm/assets/132319927/27858efc-6d65-4c6a-8088-20a743dbe74a)
 
 
